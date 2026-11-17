@@ -88,6 +88,12 @@ h2{font-weight:400;font-size:12px;letter-spacing:.24em;text-transform:uppercase;
 .seg button{padding:8px 10px;font-size:14px;min-width:42px;color:var(--dim)}
 .seg button+button{border-left:1px solid var(--line)}
 .seg button[aria-pressed="true"]{color:var(--void);background:var(--ink);font-weight:400}
+.view{display:none;flex-direction:column;gap:26px}
+.view.on{display:flex}
+.nav{display:flex;flex-direction:column;gap:10px;max-width:300px}
+.nav .go{margin-top:0;text-align:left;padding:0 18px}
+.back{align-self:flex-start;font-size:13px;letter-spacing:.14em;text-transform:uppercase;color:var(--dim);padding:6px 0}
+.back:active{color:var(--ink)}
 .sws{display:flex;gap:12px;flex-wrap:wrap}
 .sw{width:36px;height:36px;border-radius:50%;border:2px solid transparent;box-shadow:inset 0 0 0 3px var(--void)}
 .sw[aria-pressed="true"]{border-color:var(--ink)}
@@ -137,33 +143,49 @@ h2{font-weight:400;font-size:12px;letter-spacing:.24em;text-transform:uppercase;
       <h1>LUM<span>E</span>N</h1>
       <p class="tag">Take every planet. Leave no light but yours.</p>
     </header>
-    <section>
-      <h2>Campaign</h2>
-      <div class="row"><span>Difficulty</span><div class="seg" data-k="camp"><button data-v="0">Easy</button><button data-v="1">Normal</button><button data-v="2">Hard</button></div></div>
-      <div id="levels"></div>
-    </section>
-    <section>
-      <h2>Skirmish</h2>
-      <div class="row"><span>Opponents</span><div class="seg" data-k="cpus"><button data-v="1">1</button><button data-v="2">2</button><button data-v="3">3</button></div></div>
-      <div class="row"><span>Rivals</span><div class="seg" data-k="diff"><button data-v="0">Gentle</button><button data-v="1">Calm</button><button data-v="2">Even</button><button data-v="3">Fierce</button></div></div>
-      <div class="row"><span>Map</span><div class="seg" data-k="size"><button data-v="0">Small</button><button data-v="1">Medium</button><button data-v="2">Large</button></div></div>
-      <div class="row"><span>Terrain</span><div class="seg" data-k="ter"><button data-v="0">Off</button><button data-v="1">On</button></div></div>
-      <div class="row"><span>Fog of war</span><div class="seg" data-k="fog"><button data-v="0">Off</button><button data-v="1">On</button></div></div>
-      <button class="go" id="skirmish">Start skirmish</button>
-      <button class="go quiet" id="daily">Play today's map</button>
-      <div class="row" style="margin-top:12px"><label for="code">Map code</label><input id="code" inputmode="numeric" autocomplete="off" placeholder="e.g. 48213"><button class="hb" id="codeGo">Play</button></div>
-    </section>
-    <section>
-      <h2>Your colour</h2>
-      <div class="sws" id="sws"></div>
-    </section>
-    <section>
-      <h2>Records</h2>
-      <button class="go quiet" id="recBtn">View your records</button>
-    </section>
-    <section>
-      <h2>How to play</h2>
-      <div class="how">
+
+    <div class="view on" data-view="home">
+      <nav class="nav">
+        <button class="go" data-go="campaign">Campaign</button>
+        <button class="go quiet" data-go="skirmish">Skirmish</button>
+        <button class="go quiet" id="daily">Today's map</button>
+        <button class="go quiet" id="recBtn">Records</button>
+        <button class="go quiet" data-go="how">How to play</button>
+        <button class="go quiet" data-go="colour">Colour</button>
+      </nav>
+    </div>
+
+    <div class="view" data-view="campaign">
+      <button class="back" data-go="home">← Back</button>
+      <section>
+        <h2>Campaign</h2>
+        <div class="row"><span>Difficulty</span><div class="seg" data-k="camp"><button data-v="0">Easy</button><button data-v="1">Normal</button><button data-v="2">Hard</button></div></div>
+        <div id="levels"></div>
+      </section>
+    </div>
+
+    <div class="view" data-view="skirmish">
+      <button class="back" data-go="home">← Back</button>
+      <section>
+        <h2>Skirmish</h2>
+        <div class="row"><span>Opponents</span><div class="seg" data-k="cpus"><button data-v="1">1</button><button data-v="2">2</button><button data-v="3">3</button></div></div>
+        <div class="row"><span>Rivals</span><div class="seg" data-k="diff"><button data-v="0">Gentle</button><button data-v="1">Calm</button><button data-v="2">Even</button><button data-v="3">Fierce</button></div></div>
+        <div class="row"><span>Map</span><div class="seg" data-k="size"><button data-v="0">Small</button><button data-v="1">Medium</button><button data-v="2">Large</button></div></div>
+        <div class="row"><span>Terrain</span><div class="seg" data-k="ter"><button data-v="0">Off</button><button data-v="1">On</button></div></div>
+        <div class="row"><span>Fog of war</span><div class="seg" data-k="fog"><button data-v="0">Off</button><button data-v="1">On</button></div></div>
+        <button class="go" id="skirmish">Start skirmish</button>
+      </section>
+      <section>
+        <h2>Replay a map</h2>
+        <div class="row"><label for="code">Map code</label><input id="code" inputmode="numeric" autocomplete="off" placeholder="e.g. 48213"><button class="hb" id="codeGo">Play</button></div>
+      </section>
+    </div>
+
+    <div class="view" data-view="how">
+      <button class="back" data-go="home">← Back</button>
+      <section>
+        <h2>How to play</h2>
+        <div class="how">
         <p><b>Tap a grey or rival planet</b> to flag it. Your nearest planets send ships and keep reinforcing until it falls. Tap again to commit more (up to three dots). Tap the small <b>×</b> on it to cancel.</p>
         <p><b>Drag from one of your planets</b> to any target to send that planet's ships there now. Or tap your planet to select its ships, then tap a target.</p>
         <p><b>Double-tap</b> any planet to send every ship you have.</p>
@@ -176,7 +198,16 @@ h2{font-weight:400;font-size:12px;letter-spacing:.24em;text-transform:uppercase;
         <p>Planets far from the action pass their ships toward the front on their own, and stray ships drift home.</p>
         <p>Your ships and planets are <b style="color:var(--you)">this colour</b>.</p>
       </div>
-    </section>
+      </section>
+    </div>
+
+    <div class="view" data-view="colour">
+      <button class="back" data-go="home">← Back</button>
+      <section>
+        <h2>Your colour</h2>
+        <div class="sws" id="sws"></div>
+      </section>
+    </div>
   </div>
 </div>
 
@@ -1183,7 +1214,12 @@ function demo(){
   $("hud").classList.remove("on");
   newGame({demo:true,L:900,neutrals:9,cpus:2+((Math.random()*2)|0),diff:2,terrain:true});
 }
-function toMenu(){renderLevels();show("menu");demo()}
+function view(v){
+  document.querySelectorAll("#menu .view").forEach(e=>e.classList.toggle("on",e.dataset.view===v));
+  try{$("menu").scrollTop=0}catch(e){}
+}
+document.querySelectorAll("#menu [data-go]").forEach(b=>{b.onclick=()=>view(b.dataset.go)});
+function toMenu(){renderLevels();view("home");show("menu");demo()}
 function finish(won){
   G.over=true;
   for(const u of G.units)u.sel=false;sel=0;selP=null;

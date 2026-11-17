@@ -87,6 +87,11 @@ h2{font-weight:400;font-size:12px;letter-spacing:.24em;text-transform:uppercase;
 .how b{color:var(--ink);font-weight:400}
 
 #over,#pause{background:rgba(7,10,16,.72)}
+#records{background:rgba(7,10,16,.9)}
+#records .sheet{gap:22px}
+#records h1{font-size:30px;letter-spacing:.3em}
+.scrollx{overflow-x:auto}
+#recRecent{min-width:520px;white-space:nowrap}
 #over .sheet,#pause .sheet{margin:3vh auto 0;gap:12px}
 #over h1,#pause h1{font-size:30px;letter-spacing:.3em;margin-bottom:6px}
 #overSub{color:var(--dim);font-size:15px;margin-bottom:10px}
@@ -129,18 +134,36 @@ h2{font-weight:400;font-size:12px;letter-spacing:.24em;text-transform:uppercase;
       <button class="go" id="skirmish">Start skirmish</button>
     </section>
     <section>
+      <h2>Records</h2>
+      <button class="go quiet" id="recBtn">View your records</button>
+    </section>
+    <section>
       <h2>How to play</h2>
       <div class="how">
         <p><b>Tap a grey or rival planet</b> to flag it. Your nearest planets send ships and keep reinforcing until it falls. Tap again to commit more (up to three dots). <b>Hold</b> it to cancel.</p>
         <p><b>Tap one of your planets</b> to pick exactly its ships, then tap where they should go.</p>
         <p><b>Hold one of your planets</b> to mark it for defence. Neighbours send help whenever it is attacked.</p>
         <p><b>Drag</b> to move around the map and <b>pinch</b> (or scroll) to zoom. The ⤢ button switches between the whole map and a close view.</p>
+        <p>Each planet holds a limited garrison (40, 60 or 80 ships by upgrade level) and stops building when full, shown as the small count under its health.</p>
         <p>Planets far from the action pass their ships toward the front on their own, and stray ships drift home.</p>
         <p>Ships trade fire when they meet and shoot a planet's number down to zero to take it. Grey planets never shoot back.</p>
         <p><b>Upgrade</b> a planet you hold: select it and press Upgrade to spend ships on faster building, up to two times.</p>
         <p>You are the <b style="color:var(--you)">blue</b> ones.</p>
       </div>
     </section>
+  </div>
+</div>
+
+<div id="records" class="screen">
+  <div class="sheet">
+    <h1>RECORDS</h1>
+    <p class="note" id="recEmpty">No finished games yet. Records are kept after every campaign map and skirmish you play to the end.</p>
+    <section><h2>Totals</h2><table class="stats" id="recTotals"></table></section>
+    <section><h2>How you play</h2><table class="stats" id="recStyle"></table></section>
+    <section><h2>By rival level</h2><table class="stats" id="recDiff"></table></section>
+    <section><h2>Last 30 games</h2><div class="scrollx"><table class="stats" id="recRecent"></table></div></section>
+    <button class="go" id="recBack">Back</button>
+    <button class="go quiet" id="recWipe">Erase records</button>
   </div>
 </div>
 
@@ -177,6 +200,7 @@ const TEAM=[[127,214,255],[255,122,107],[255,200,87],[178,141,255]];
 const NEUT=[170,178,191];
 const rgba=(c,a)=>"rgba("+c[0]+","+c[1]+","+c[2]+","+a+")";
 const PLANET={r:34,cost:100,hp:130,rate:1.5};
+const GCAP=[0,40,60,80];
 const TS=.8,PFIRE=2,UPC=[0,20,35,0],MAXLVL=3;
 const SPEED=58,AGGRO=52,RANGE2=44*44,HOLD2=32*32,FIRE=.7,UHP=4,CELL=54,CAP=400,START=20;
 const DIFF=[{int:9,agg:2.2,keep:.45,prod:.6,focus:1,route:.1,up:false},{int:6,agg:1.7,keep:.35,prod:.85,focus:1.5,route:.2,up:true},
@@ -197,6 +221,11 @@ const LEVELS=[
 /* ---------- storage ---------- */
 let progress=0;
 try{progress=Math.min(LEVELS.length,parseInt(localStorage.getItem("lumen.progress")||"0",10)||0)}catch(e){}
+const CAREER0=()=>({v:1,games:0,wins:0,time:0,built:0,lost:0,kills:0,caps:0,lostP:0,ups:0,flags:0,sends:0,defs:0,shots:0,
+  streak:0,bestStreak:0,fastest:0,longest:0,peak:0,byDiff:[0,1,2,3].map(()=>({g:0,w:0})),camp:{g:0,w:0},skir:{g:0,w:0},recent:[]});
+let career=CAREER0();
+try{const c=JSON.parse(localStorage.getItem("lumen.career")||"null");if(c&&c.v===1)career=Object.assign(CAREER0(),c)}catch(e){}
+function saveCareer(){try{localStorage.setItem("lumen.career",JSON.stringify(career))}catch(e){}}
 function saveProgress(){try{localStorage.setItem("lumen.progress",String(progress))}catch(e){}}
 
 /* ---------- view ---------- */
@@ -242,7 +271,7 @@ function newGame(cfg){
   lastCfg=cfg;
   G={demo:!!cfg.demo,diff:cfg.diff,level:cfg.level,planets:[],units:[],parts:[],rips:[],time:0,over:false,
      aiT:[],alive:[],counts:[0,0,0,0],teams:0,W:0,H:0,dust:[],orders:0,shots:[],
-     hist:[],histT:0,flagsPlaced:0,
+     hist:[],histT:0,flagsPlaced:0,sends:0,defs:0,firstCap:0,
      stat:[0,1,2,3].map(()=>({built:0,lost:0,kills:0,caps:0,peak:0,lostP:0,shots:0,pdmg:0,ups:0,maxP:0}))};
   const a=area();
   const portrait=a.h>a.w;
@@ -283,7 +312,7 @@ function newGame(cfg){
 function addPlanet(x,y,tier,owner){
   const T=PLANET;tier=1;
   G.planets.push({id:G.planets.length,x,y,tier,r:T.r,cost:T.cost,max:T.hp,rate:T.rate,owner,hp:owner>=0?T.hp:0,cap:0,capTeam:-1,t:Math.random()*T.rate,pulse:0,
-    lvl:1,upg:0,hitT:-99,route:null,flag:0,def:false,fd:0,aiT:1.5+Math.random()*3,spin:Math.random()*6.283});
+    lvl:1,upg:0,hitT:-99,gar:0,route:null,flag:0,def:false,fd:0,aiT:1.5+Math.random()*3,spin:Math.random()*6.283});
 }
 function spawn(p){
   const a=Math.random()*6.283;
@@ -323,15 +352,17 @@ function hitPlanet(p,u){
     if(p.hp<=0){G.stat[p.owner].lostP++;p.owner=N;p.hp=0;p.cap=0;p.capTeam=-1;p.lvl=1;p.upg=0;p.route=null;flash(p)}
   }else if(p.capTeam===t||p.cap<=0){
     p.capTeam=t;p.cap++;
-    if(p.cap>=p.cost){G.stat[t].caps++;p.owner=t;p.hp=Math.ceil(p.max*.5);p.cap=0;p.capTeam=-1;p.t=0;p.hitT=G.time;p.route=null;p.aiT=1+Math.random()*3;flash(p)}
+    if(p.cap>=p.cost){G.stat[t].caps++;if(t===0&&!G.firstCap)G.firstCap=G.time;p.owner=t;p.hp=Math.ceil(p.max*.5);p.cap=0;p.capTeam=-1;p.t=0;p.hitT=G.time;p.route=null;p.aiT=1+Math.random()*3;flash(p)}
   }else{p.cap--;if(p.cap<=0)p.capTeam=-1}
 }
 /* arrange ships around each planet in evenly spaced, counter-rotating rings */
 const buckets=new Map();
 function layoutOrbits(){
   buckets.forEach(b=>{b.length=0});
+  for(const p of G.planets)p.gar=0;
   for(const u of G.units){
     const p=u.tp;if(!p||u.feed)continue;
+    if(u.team===p.owner)p.gar++;
     const k=p.id*4+u.team;let b=buckets.get(k);
     if(!b)buckets.set(k,b=[]);
     b.push(u);
@@ -386,7 +417,8 @@ function step(dt){
     if(p.hp<p.max&&G.time-p.hitT>4)p.hp=Math.min(p.max,p.hp+dt*1.5);
     p.t+=dt;
     const rate=spawnRate(p)/(p.owner>0&&!G.demo?DIFF[G.diff].prod:1);
-    while(p.t>=rate){p.t-=rate;if(C[p.owner]<CAP){spawn(p);C[p.owner]++}}
+    if(p.gar>=GCAP[p.lvl]){if(p.t>rate)p.t=rate}
+    else while(p.t>=rate){p.t-=rate;if(C[p.owner]<CAP&&p.gar<GCAP[p.lvl]){spawn(p);C[p.owner]++;if(!p.route)p.gar++}}
   }
   if(frame%8===0)layoutOrbits();
   buildGrid();
@@ -538,7 +570,7 @@ function flagTick(){
     if(jobs.has(p)||p.fd>=1e9)continue;
     let best=null,bd=p.fd;
     for(const o of own){if(o===p||o.fd>=p.fd*.85)continue;const d=Math.hypot(o.x-p.x,o.y-p.y);if(d<bd){bd=d;best=o}}
-    if(best)jobs.set(p,[{q:best,keep:6,fl:false}]);
+    if(best&&best.gar<GCAP[best.lvl]*1.5)jobs.set(p,[{q:best,keep:6,fl:false}]);
   }
   jobs.forEach((list,src)=>{
     if(foes[src.id]>3)return;
@@ -635,7 +667,13 @@ function draw(){
     }
     ctx.fillStyle=rgba(fc,p.owner>=0?.96:.8);
     ctx.font="400 "+(p.r*(num>99?.52:.62)).toFixed(1)+"px Jost,'Avenir Next',sans-serif";
-    ctx.fillText(String(num),p.x,p.y+p.r*.05);
+    ctx.fillText(String(num),p.x,p.y+(p.owner>=0?-p.r*.1:p.r*.05));
+    if(p.owner>=0){
+      const full=p.gar>=GCAP[p.lvl];
+      ctx.fillStyle=full?"rgba(255,255,255,.95)":rgba(fc,.7);
+      ctx.font="400 "+(p.r*.27).toFixed(1)+"px Jost,'Avenir Next',sans-serif";
+      ctx.fillText(p.gar+"/"+GCAP[p.lvl],p.x,p.y+p.r*.48);
+    }
     if(p.lvl>1){
       ctx.strokeStyle=rgba(c,.55);ctx.lineWidth=Math.max(.7,.8*px);
       for(let k=1;k<p.lvl;k++){ctx.beginPath();ctx.arc(p.x,p.y,p.r+1+k*2.6,0,6.2832);ctx.stroke()}
@@ -819,7 +857,7 @@ function clearSel(){for(const u of G.units)u.sel=false;sel=0;selP=null}
 function hold(p){
   if(!p)return;
   if(p.owner===0){
-    p.def=!p.def;
+    p.def=!p.def;if(p.def)G.defs++;
     hint(p.def?"Defend flag set. Neighbours send help whenever this planet is attacked.":"Defend flag removed.",3);
   }else if(!cancelFlag(p))hint("Tap this planet to flag it for attack.",2);
 }
@@ -872,7 +910,7 @@ function endDrag(e,cancel){
     const x=hit?hit.x:Math.max(4,Math.min(G.W-4,w[0])),y=hit?hit.y:Math.max(4,Math.min(G.H-4,w[1]));
     const list=[];
     for(const u of G.units)if(u.sel)list.push(u);
-    clearSel();
+    clearSel();G.sends++;
     order(list,x,y,hit);
     G.rips.push({x,y,t:0,c:TEAM[0],r:hit?hit.r:0,big:!!hit});
     return;
@@ -910,7 +948,7 @@ window.addEventListener("keydown",e=>{
 });
 
 /* ---------- screens ---------- */
-function show(id){for(const s of["menu","pause","over"])$(s).classList.toggle("on",s===id)}
+function show(id){for(const s of["menu","pause","over","records"])$(s).classList.toggle("on",s===id)}
 function setPause(v){paused=v;if(v&&G)statsTable($("pauseStats"));show(v?"pause":null)}
 function play(cfg){
   show(null);$("hud").classList.add("on");
@@ -949,8 +987,54 @@ function finish(won){
     $("overSub").textContent=(won?"Skirmish won in ":"Skirmish lost after ")+m+":"+s+" against "+(G.teams-1)+" "+DIFFNAME[G.diff].toLowerCase()+(G.teams>2?" rivals.":" rival.");
     nx.textContent=won?"New skirmish":"Try again";nx.onclick=playSkirmish;
   }
+  $("overSub").textContent+=" "+record(won);
   setTimeout(()=>{if(G&&G.over){show("over");drawChart()}},900);
 }
+const mmss=t=>Math.floor(t/60)+":"+String(Math.floor(t%60)).padStart(2,"0");
+function record(won){
+  const S=G.stat[0],c=career,camp=G.level!=null;
+  c.games++;c.time+=G.time;c.built+=S.built;c.lost+=S.lost;c.kills+=S.kills;c.caps+=S.caps;c.lostP+=S.lostP;c.ups+=S.ups;c.shots+=S.shots;
+  c.flags+=G.flagsPlaced;c.sends+=G.sends;c.defs+=G.defs;
+  if(S.peak>c.peak)c.peak=S.peak;if(G.time>c.longest)c.longest=G.time;
+  const d=c.byDiff[G.diff],m=camp?c.camp:c.skir;d.g++;m.g++;
+  if(won){c.wins++;d.w++;m.w++;c.streak++;if(c.streak>c.bestStreak)c.bestStreak=c.streak;if(!c.fastest||G.time<c.fastest)c.fastest=G.time}
+  else c.streak=0;
+  c.recent.unshift({d:Date.now(),m:camp?"Map "+(G.level+1):"Skirmish",r:G.teams-1,df:G.diff,w:won?1:0,t:Math.round(G.time),
+    b:S.built,l:S.lost,k:S.kills,c:S.caps,lp:S.lostP,u:S.ups,f:G.flagsPlaced,s:G.sends,fc:Math.round(G.firstCap)});
+  c.recent.length=Math.min(c.recent.length,30);
+  saveCareer();
+  return "Record: "+c.wins+" won of "+c.games+(c.streak>1?", "+c.streak+" in a row.":".");
+}
+function renderRecords(){
+  const c=career,tb=(id,rows,head)=>{
+    const el=$(id);el.textContent="";
+    rows.forEach((r,ri)=>{const tr=document.createElement("tr");r.forEach(v=>{const x=document.createElement(head&&ri===0?"th":"td");x.textContent=String(v);tr.appendChild(x)});el.appendChild(tr)});
+  };
+  const pct=(w,g)=>g?Math.round(w/g*100)+"%":"\u2013",per=(v)=>c.games?(v/c.games).toFixed(1):"\u2013";
+  $("recEmpty").style.display=c.games?"none":"block";
+  tb("recTotals",[
+    ["Games played",c.games],["Won",c.wins+" ("+pct(c.wins,c.games)+")"],
+    ["Campaign won",c.camp.w+" of "+c.camp.g],["Skirmish won",c.skir.w+" of "+c.skir.g],
+    ["Current streak",c.streak],["Best streak",c.bestStreak],
+    ["Fastest win",c.fastest?mmss(c.fastest):"\u2013"],["Longest game",c.longest?mmss(c.longest):"\u2013"],
+    ["Time played",mmss(c.time)],["Largest fleet ever",c.peak],
+    ["Ships built",c.built],["Ships lost",c.lost],["Ships destroyed",c.kills],
+    ["Destroyed per loss",c.lost?(c.kills/c.lost).toFixed(2):"\u2013"],["Shots fired",c.shots],
+    ["Planets captured",c.caps],["Planets lost",c.lostP]]);
+  tb("recStyle",[
+    ["Flags per game",per(c.flags)],["Manual sends per game",per(c.sends)],["Defend flags per game",per(c.defs)],
+    ["Upgrades per game",per(c.ups)],["Captures per game",per(c.caps)]]);
+  tb("recDiff",[["Rivals","Played","Won","Win rate"]].concat(DIFFNAME.map((n,i)=>[n,c.byDiff[i].g,c.byDiff[i].w,pct(c.byDiff[i].w,c.byDiff[i].g)])),true);
+  tb("recRecent",[["Game","Rivals","Result","Time","Built","Lost","Flags","1st capture"]].concat(c.recent.map(r=>
+    [r.m,r.r+" "+DIFFNAME[r.df],r.w?"Won":"Lost",mmss(r.t),r.b,r.l,r.f,r.fc?mmss(r.fc):"\u2013"])),true);
+}
+let wipeArm=0;
+$("recBtn").onclick=()=>{renderRecords();wipeArm=0;$("recWipe").textContent="Erase records";show("records")};
+$("recBack").onclick=()=>show("menu");
+$("recWipe").onclick=()=>{
+  if(!wipeArm){wipeArm=1;$("recWipe").textContent="Tap again to erase everything";return}
+  career=CAREER0();saveCareer();wipeArm=0;$("recWipe").textContent="Erase records";renderRecords();
+};
 function renderLevels(){
   const box=$("levels");box.textContent="";
   LEVELS.forEach((L,i)=>{

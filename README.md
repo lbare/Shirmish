@@ -62,9 +62,11 @@ All values are constants near the top of the script in `index.html`.
 | Ship fire interval (vs ships / vs planets) | 0.7 s / 2 s | `FIRE`, `PFIRE` |
 | Ship speed | 58 units/s | `SPEED` |
 | Fleet cap per side | 400 | `CAP` |
+| Garrison limit per planet (level 1 / 2 / 3) | 40 / 60 / 80 | `GCAP` |
 | Starting ships | 20 | `START` |
 | Global time scale | 0.8 | `TS` |
 
+- A planet stops building while its garrison is at its limit; the small count under its health shows garrison and limit. Auto supply stops feeding a planet once it holds 1.5 times its limit.
 - A captured planet starts at half health and level 1. Owned planets regenerate after 4 seconds without being hit.
 - A rival planet shot to zero turns grey and must then be shot down again to capture.
 - Grey planets never shoot back, and neither do owned planets; only ships defend.
@@ -87,6 +89,10 @@ Each rival planet decides for itself at its own moment: it picks a nearby target
 ## Stats
 
 The HUD shows live ship and planet counts for every side. The pause and end screens show, per side: ships now, largest fleet, ships built, built per minute, ships lost, ships destroyed, destroyed per loss, shots fired, planet damage dealt, planets now, most planets held, planets captured, planets lost and upgrades bought. The end screen also charts fleet size over time.
+
+## Records
+
+Every campaign map or skirmish played to the end is added to a career record, opened from **View your records** on the menu: totals (games, wins, streaks, fastest win, ships built, lost and destroyed, planets captured and lost), how you play (flags, manual sends, defend flags, upgrades and captures per game), win rate by rival level, and the last 30 games. Records are stored in the browser's `localStorage` under `lumen.career`, so they stay on the device and browser you played on.
 
 ## Code map
 
